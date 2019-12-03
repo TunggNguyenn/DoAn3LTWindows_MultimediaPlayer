@@ -38,6 +38,7 @@ namespace _1712867_1712872_1712884
         private static Random _random = new Random();
         private NameConverter _nameConverter = new NameConverter();
         private List<int> _deletedPlayListArr = new List<int>();
+        private bool _isDeleting = false;
         //private bool _isMediaEnded = false;
 
 
@@ -127,7 +128,6 @@ namespace _1712867_1712872_1712884
             }
         }
 
-
         public static List<int> GenerateRandom(int count, int min, int max)
         {
 
@@ -184,10 +184,9 @@ namespace _1712867_1712872_1712884
             return result;
         }
 
-
         private void _timer_Tick(object sender, EventArgs e)
         {
-            if ((this.mediaPlayer.Source != null) && (this.mediaPlayer.NaturalDuration.HasTimeSpan) && (!_isDragging) && (this.currentPlayerIndex != -1))
+            if ((this.mediaPlayer.Source != null) && (this.mediaPlayer.NaturalDuration.HasTimeSpan) && (!_isDragging) && (this.currentPlayerIndex != -1) && (!this._isDeleting))
             {
                 playerTime.Text = String.Format($"{mediaPlayer.Position.ToString(@"mm\:ss")} / {mediaPlayer.NaturalDuration.TimeSpan.ToString(@"mm\:ss")}");
 
@@ -483,33 +482,70 @@ namespace _1712867_1712872_1712884
 
         private void deleteButton_Click(object sender, RoutedEventArgs e)
         {
-            for (int i = 0; i < this._deletedPlayListArr.Count; i++)
+            this._isDeleting = true;
+            sortDeletedPlayListArray(this._deletedPlayListArr);
+
+            for (int i = this._deletedPlayListArr.Count - 1; i >= 0; i--)
             {
-                if(this._deletedPlayListArr[i] == this.currentPlayerIndex)
+                if(this.currentPlayerIndex == this._deletedPlayListArr[i])
                 {
                     continue;
                 }
 
-                for(int j = 0; j < this._playList.Count; i++)
+                this._playList.RemoveAt(this._deletedPlayListArr[i]);
+
+                if (this._deletedPlayListArr[i] < this.currentPlayerIndex)
                 {
-                    if(this._deletedPlayListArr[i] == j)
-                    {
-                        this._playList.Remove(this._playList[j]);
-                        break;
-                    }
+                    this.currentPlayerIndex--;
                 }
 
-                for (int j = 0; j < this._shuffleArr.Count; i++)
+            }
+
+
+            for (int i = this._deletedPlayListArr.Count - 1; i >= 0; i--)
+            {
+                if (this.currentPlayerIndex == this._deletedPlayListArr[i])
+                {
+                    continue;
+                }
+
+                for(int j = 0; j < this._shuffleArr.Count; j++)
                 {
                     if (this._deletedPlayListArr[i] == this._shuffleArr[j])
                     {
-                        this._shuffleArr.Remove(j);
-                        break;
+                        this._shuffleArr.RemoveAt(j);
                     }
                 }
             }
 
+            this._deletedPlayListArr.Clear();
+            if (this.currentPlayerIndex != -1)
+            {
+                this._deletedPlayListArr.Add(this.currentPlayerIndex);
+            }
 
+            if (this._deletedPlayListArr.Count == 0)
+            {
+                deleteButton.Visibility = Visibility.Collapsed;
+            }
+
+            this._isDeleting = false;
+        }
+
+        private void sortDeletedPlayListArray(List<int> deletedPlayListArr)
+        {
+            for (int i = 0; i < deletedPlayListArr.Count - 1; i++)
+            {
+                for (int j = i + 1; j < deletedPlayListArr.Count; j++)
+                {
+                    if(deletedPlayListArr[i] > deletedPlayListArr[j])
+                    {
+                        var temp = deletedPlayListArr[i];
+                        deletedPlayListArr[i] = deletedPlayListArr[j];
+                        deletedPlayListArr[j] = temp;
+                    }
+                }
+            }
         }
     }
 }
