@@ -1,4 +1,5 @@
-﻿using Microsoft.Win32;
+﻿using Gma.System.MouseKeyHook;
+using Microsoft.Win32;
 using System;
 using System.Collections.Generic;
 using System.ComponentModel;
@@ -17,6 +18,7 @@ using System.Windows.Media.Imaging;
 using System.Windows.Navigation;
 using System.Windows.Shapes;
 using System.Windows.Threading;
+using System.Windows.Forms;
 
 namespace _1712867_1712872_1712884
 {
@@ -40,19 +42,58 @@ namespace _1712867_1712872_1712884
         private List<int> _deletedPlayListArr = new List<int>();
         private bool _isDeleting = false;
         //private bool _isMediaEnded = false;
+        private IKeyboardMouseEvents _hook;
 
 
         public MainWindow()
         {
             InitializeComponent();
-            this.BeginButton.RaiseEvent(new RoutedEventArgs(Button.ClickEvent));
-            this.PauseButton.RaiseEvent(new RoutedEventArgs(Button.ClickEvent));
+            this.BeginButton.RaiseEvent(new RoutedEventArgs(System.Windows.Controls.Button.ClickEvent));
+            this.PauseButton.RaiseEvent(new RoutedEventArgs(System.Windows.Controls.Button.ClickEvent));
 
             mediaPlayer.MediaEnded += MediaPlayer_MediaEnded;
             playListListView.ItemsSource = _playList;
 
             _timer.Interval = TimeSpan.FromSeconds(1);
             _timer.Tick += _timer_Tick;
+
+            //Đăng ký sự kiện Hook
+            this._hook = Hook.GlobalEvents();
+            this._hook.KeyUp += KeyUp_Hook;
+        }
+
+        private void KeyUp_Hook(object sender, System.Windows.Forms.KeyEventArgs e)
+        {
+
+            //Play
+            if(e.Control && e.Shift && (e.KeyCode == Keys.P))
+            {
+                if (!this._isPlaying)
+                {
+                    this.playButton.RaiseEvent(new RoutedEventArgs(System.Windows.Controls.Button.ClickEvent));
+                }
+            }
+
+            //Pause
+            if(e.Control && e.Shift && (e.KeyCode == Keys.S))
+            {
+                if (this._isPlaying)
+                {
+                    this.playButton.RaiseEvent(new RoutedEventArgs(System.Windows.Controls.Button.ClickEvent));
+                }
+            }
+
+            //Next
+            if(e.Control && e.Shift && (e.KeyCode == Keys.N))
+            {
+                this.nextButton.RaiseEvent(new RoutedEventArgs(System.Windows.Controls.Button.ClickEvent));
+            }
+
+            //Previous
+            if(e.Control && e.Shift && (e.KeyCode == Keys.Z))
+            {
+                this.backButton.RaiseEvent(new RoutedEventArgs(System.Windows.Controls.Button.ClickEvent));
+            }
         }
 
         private void MediaPlayer_MediaEnded(object sender, RoutedEventArgs e)
@@ -72,10 +113,11 @@ namespace _1712867_1712872_1712884
                 {
                     if (this.currentPlayerIndex >= _playList.Count)
                     {
-                        this.currentPlayerIndex = -1;
+                        this.currentPlayerIndex--;
 
                         //
-                        this.PauseButton.RaiseEvent(new RoutedEventArgs(Button.ClickEvent));
+                        this.PauseButton.RaiseEvent(new RoutedEventArgs(System.Windows.Controls.Button.ClickEvent));
+                        endedMediaWithoutLoop();
 
                         return;
                     }
@@ -107,8 +149,11 @@ namespace _1712867_1712872_1712884
                         }
                     }
 
+                    //this.currentPlayerIndex = -1;   //
+
                     //
-                    this.PauseButton.RaiseEvent(new RoutedEventArgs(Button.ClickEvent));
+                    this.PauseButton.RaiseEvent(new RoutedEventArgs(System.Windows.Controls.Button.ClickEvent));
+                    endedMediaWithoutLoop();
                 }
                 else
                 {
@@ -126,6 +171,15 @@ namespace _1712867_1712872_1712884
                     mediaPlayer.Source = new Uri(this._playList[this.currentPlayerIndex].ToString(), UriKind.Absolute);
                 }
             }
+        }
+
+        private void endedMediaWithoutLoop()
+        {
+            this._isDragging = true;    //
+            progressPlayer.Value = 0;   //
+            mediaPlayer.Position = TimeSpan.FromSeconds(progressPlayer.Value);  //
+            this._isDragging = false;    //
+            this.playButton.RaiseEvent(new RoutedEventArgs(System.Windows.Controls.Button.ClickEvent)); //
         }
 
         public static List<int> GenerateRandom(int count, int min, int max)
@@ -186,7 +240,7 @@ namespace _1712867_1712872_1712884
 
         private void _timer_Tick(object sender, EventArgs e)
         {
-            if ((this.mediaPlayer.Source != null) && (this.mediaPlayer.NaturalDuration.HasTimeSpan) && (!_isDragging) && (this.currentPlayerIndex != -1) && (!this._isDeleting))
+            if ((this.mediaPlayer.Source != null) && (this.mediaPlayer.NaturalDuration.HasTimeSpan) && (!_isDragging) && (this.currentPlayerIndex != -1) && (!this._isDeleting) && (this._isPlaying))
             {
                 playerTime.Text = String.Format($"{mediaPlayer.Position.ToString(@"mm\:ss")} / {mediaPlayer.NaturalDuration.TimeSpan.ToString(@"mm\:ss")}");
 
@@ -218,20 +272,28 @@ namespace _1712867_1712872_1712884
 
         private void uploadButton_Click(object sender, RoutedEventArgs e)
         {
-            var screen = new OpenFileDialog();
+            var openFileDialog = new Microsoft.Win32.OpenFileDialog();
+            openFileDialog.Multiselect = true;
 
-            if(screen.ShowDialog() == true)
+            if (openFileDialog.ShowDialog() == true)
             {
-                var player = new FileInfo(screen.FileName);
+                //var player = new FileInfo(openFileDialog.FileName);
 
-                this._playList.Add(player);
+                //this._playList.Add(player);
+
+                foreach (var fileName in openFileDialog.FileNames)
+                {
+                    var player = new FileInfo(fileName);
+                    this._playList.Add(player);
+                }
             }
         }
+
 
         private void playListListView_MouseDoubleClick(object sender, MouseButtonEventArgs e)
         {
             this._isPlaying = true;
-            var mediaPlayer = sender as ListView;
+            var mediaPlayer = sender as System.Windows.Controls.ListView;
             this.currentPlayerIndex = mediaPlayer.SelectedIndex;
 
             this.mediaPlayer.Source = new Uri(_playList[currentPlayerIndex].ToString(), UriKind.Absolute);
@@ -240,7 +302,7 @@ namespace _1712867_1712872_1712884
             this.mediaPlayer.Play();
 
             //
-            this.ResumeButton.RaiseEvent(new RoutedEventArgs(Button.ClickEvent));
+            this.ResumeButton.RaiseEvent(new RoutedEventArgs(System.Windows.Controls.Button.ClickEvent));
 
             System.Threading.Thread.Sleep(1000);
             _timer.Start();
@@ -259,14 +321,14 @@ namespace _1712867_1712872_1712884
                 this.mediaPlayer.Pause();
                 playImage.Source = new BitmapImage(new Uri("/Images/play.png", UriKind.Relative));
 
-                this.PauseButton.RaiseEvent(new RoutedEventArgs(Button.ClickEvent));
+                this.PauseButton.RaiseEvent(new RoutedEventArgs(System.Windows.Controls.Button.ClickEvent));
             }
             else
             {
                 this.mediaPlayer.Play();
                 playImage.Source = new BitmapImage(new Uri("/Images/pause.png", UriKind.Relative));
 
-                this.ResumeButton.RaiseEvent(new RoutedEventArgs(Button.ClickEvent));
+                this.ResumeButton.RaiseEvent(new RoutedEventArgs(System.Windows.Controls.Button.ClickEvent));
             }
 
             this._isPlaying = !this._isPlaying;
@@ -378,6 +440,12 @@ namespace _1712867_1712872_1712884
 
         private void shuffleButton_Click(object sender, RoutedEventArgs e)
         {
+            if (!this._isPlaying)
+            {
+                System.Windows.MessageBox.Show("Media not played yet", "Note");
+                return;
+            }
+
             this._isShuffle = !this._isShuffle;
 
             if (this._isShuffle)
@@ -442,7 +510,7 @@ namespace _1712867_1712872_1712884
 
         private void CheckBox_Checked(object sender, RoutedEventArgs e)
         {
-            var checkedPlayer = sender as CheckBox;
+            var checkedPlayer = sender as System.Windows.Controls.CheckBox;
 
             
             for(int i = 0; i < this._playList.Count; i++)
@@ -463,7 +531,7 @@ namespace _1712867_1712872_1712884
 
         private void CheckBox_Unchecked(object sender, RoutedEventArgs e)
         {
-            var uncheckedPlayer = sender as CheckBox;
+            var uncheckedPlayer = sender as System.Windows.Controls.CheckBox;
 
             for (int i = 0; i < this._deletedPlayListArr.Count; i++)
             {
@@ -483,12 +551,15 @@ namespace _1712867_1712872_1712884
         private void deleteButton_Click(object sender, RoutedEventArgs e)
         {
             this._isDeleting = true;
+            bool flag = false;
+            int count = 0;
             sortDeletedPlayListArray(this._deletedPlayListArr);
 
             for (int i = this._deletedPlayListArr.Count - 1; i >= 0; i--)
             {
                 if(this.currentPlayerIndex == this._deletedPlayListArr[i])
                 {
+                    flag = true;
                     continue;
                 }
 
@@ -497,6 +568,7 @@ namespace _1712867_1712872_1712884
                 if (this._deletedPlayListArr[i] < this.currentPlayerIndex)
                 {
                     this.currentPlayerIndex--;
+                    count++;
                 }
 
             }
@@ -504,8 +576,9 @@ namespace _1712867_1712872_1712884
 
             for (int i = this._deletedPlayListArr.Count - 1; i >= 0; i--)
             {
-                if (this.currentPlayerIndex == this._deletedPlayListArr[i])
+                if (this.currentPlayerIndex + count == this._deletedPlayListArr[i])
                 {
+                    flag = true;
                     continue;
                 }
 
@@ -519,7 +592,7 @@ namespace _1712867_1712872_1712884
             }
 
             this._deletedPlayListArr.Clear();
-            if (this.currentPlayerIndex != -1)
+            if (flag == true)
             {
                 this._deletedPlayListArr.Add(this.currentPlayerIndex);
             }
@@ -546,6 +619,12 @@ namespace _1712867_1712872_1712884
                     }
                 }
             }
+        }
+
+        private void Window_Closing(object sender, CancelEventArgs e)
+        {
+            this._hook.KeyUp -= KeyUp_Hook;
+            this._hook.Dispose();
         }
     }
 }

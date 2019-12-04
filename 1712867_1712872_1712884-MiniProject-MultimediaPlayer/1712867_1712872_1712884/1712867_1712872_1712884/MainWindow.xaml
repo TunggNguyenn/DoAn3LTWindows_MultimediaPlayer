@@ -5,9 +5,12 @@
         xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
         xmlns:local="clr-namespace:_1712867_1712872_1712884"
         mc:Ignorable="d"
-        Title="MultimediaPlayer" RenderOptions.BitmapScalingMode="HighQuality" Icon="/Images/windows-media-player.png" Height="600" Width="1000">
+        Title="MultimediaPlayer" RenderOptions.BitmapScalingMode="HighQuality"
+        Icon="/Images/windows-media-player.png" Height="600" Width="1000"
+        Closing="Window_Closing">
     <Window.Resources>
-        <local:NameConverter x:Key="converter"/>
+        <local:NameConverter x:Key="nameConverter"/>
+        <local:ExtensionConverter x:Key="extensionConverter"/>
     </Window.Resources>
     <Grid>
         <Grid.RowDefinitions>
@@ -41,9 +44,10 @@
                                 <DataTemplate>
                                     <StackPanel Orientation="Horizontal">
                                         <CheckBox Checked="CheckBox_Checked" Unchecked="CheckBox_Unchecked" Margin="0,0,5,0" VerticalAlignment="Center" HorizontalAlignment="Center">
-                                            <TextBlock Visibility="Collapsed" Text="{Binding Name, Converter={StaticResource converter}}"/>
+                                            <TextBlock Visibility="Collapsed" Text="{Binding Name, Converter={StaticResource nameConverter}}"/>
                                         </CheckBox>
-                                        <TextBlock Foreground="Black"  FontSize="15" FontWeight="Bold" FontStyle="Italic" Text="{Binding Name, Converter={StaticResource converter}}"/>
+                                        <TextBlock ScrollViewer.HorizontalScrollBarVisibility="Visible" ScrollViewer.CanContentScroll="True" Width="220"  Foreground="Black"  FontSize="15" FontWeight="Bold" FontStyle="Italic" Text="{Binding Name, Converter={StaticResource nameConverter}}"/>
+                                        <Image RenderOptions.BitmapScalingMode="HighQuality" Height="30" Width="30" Source="{Binding Name, Converter={StaticResource extensionConverter}}"/>
                                     </StackPanel>
                                 </DataTemplate>
                             </ListView.ItemTemplate>
@@ -77,12 +81,12 @@
                         <GradientStop Color="Purple"  Offset="1"/>
                     </LinearGradientBrush>
                 </StackPanel.Background>
-                <MediaElement Name="mediaPlayer" LoadedBehavior="Manual" Visibility="Collapsed"/>
+                <MediaElement Name="mediaPlayer" RenderOptions.BitmapScalingMode="HighQuality" LoadedBehavior="Manual" Visibility="Collapsed"/>
                 <StackPanel x:Name="rotatePictureStackPanel" Orientation="Vertical" Visibility="Visible">
                     <Button Name="BeginButton" Visibility="Collapsed">Begin</Button>
                     <Button Name="PauseButton" Visibility="Collapsed">Pause</Button>
                     <Button Name="ResumeButton"  Visibility="Collapsed">Resume</Button>
-                    <Ellipse x:Name="rotateEllipsePicture" RenderTransformOrigin="0.5,0.5" Margin="0,30,0,0" Height="350" Width="350" VerticalAlignment="Center" HorizontalAlignment="Center" >
+                    <Ellipse x:Name="rotateEllipsePicture" RenderOptions.BitmapScalingMode="HighQuality" RenderTransformOrigin="0.5,0.5" Margin="0,30,0,0" Height="350" Width="350" VerticalAlignment="Center" HorizontalAlignment="Center" >
                         <Ellipse.RenderTransform>
                             <RotateTransform/>
                         </Ellipse.RenderTransform>
