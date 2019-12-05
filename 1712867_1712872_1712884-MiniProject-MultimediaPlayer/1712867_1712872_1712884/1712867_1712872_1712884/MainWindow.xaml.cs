@@ -27,13 +27,15 @@ namespace _1712867_1712872_1712884
     /// </summary>
     public partial class MainWindow : Window
     {
+        const string PlayListHistoryFileName = "PlayListHistory.txt";
         //private MediaPlayer _mediaPlayer = new MediaPlayer();
         private BindingList<FileInfo> _playList = new BindingList<FileInfo>();
         private DispatcherTimer _timer = new DispatcherTimer();
         private int currentPlayerIndex = -1;
         private bool _isPlaying = false;
         private bool _isDragging = false;
-        private bool _isShuffle = false;
+        private bool _isShuffling = false;
+        private bool _isShuffled = true;
         private bool _isLoop = false;
         private bool _isLoop1 = false;
         private List<int> _shuffleArr = new List<int>();
@@ -42,6 +44,7 @@ namespace _1712867_1712872_1712884
         private List<int> _deletedPlayListArr = new List<int>();
         private bool _isDeleting = false;
         //private bool _isMediaEnded = false;
+
         private IKeyboardMouseEvents _hook;
 
 
@@ -66,7 +69,7 @@ namespace _1712867_1712872_1712884
         {
 
             //Play
-            if(e.Control && e.Shift && (e.KeyCode == Keys.P))
+            if (e.Control && e.Shift && (e.KeyCode == Keys.P))
             {
                 if (!this._isPlaying)
                 {
@@ -75,7 +78,7 @@ namespace _1712867_1712872_1712884
             }
 
             //Pause
-            if(e.Control && e.Shift && (e.KeyCode == Keys.S))
+            if (e.Control && e.Shift && (e.KeyCode == Keys.S))
             {
                 if (this._isPlaying)
                 {
@@ -84,13 +87,13 @@ namespace _1712867_1712872_1712884
             }
 
             //Next
-            if(e.Control && e.Shift && (e.KeyCode == Keys.N))
+            if (e.Control && e.Shift && (e.KeyCode == Keys.N))
             {
                 this.nextButton.RaiseEvent(new RoutedEventArgs(System.Windows.Controls.Button.ClickEvent));
             }
 
             //Previous
-            if(e.Control && e.Shift && (e.KeyCode == Keys.Z))
+            if (e.Control && e.Shift && (e.KeyCode == Keys.Z))
             {
                 this.backButton.RaiseEvent(new RoutedEventArgs(System.Windows.Controls.Button.ClickEvent));
             }
@@ -105,7 +108,7 @@ namespace _1712867_1712872_1712884
                 return;
             }
 
-            if (this._isShuffle == false)
+            if (this._isShuffling == false)
             {
                 this.currentPlayerIndex++;
 
@@ -133,7 +136,7 @@ namespace _1712867_1712872_1712884
                         this.currentPlayerIndex = 0;
                     }
                     mediaPlayer.Source = new Uri(_playList[this.currentPlayerIndex].ToString(), UriKind.Absolute);
-                }             
+                }
             }
             else
             {
@@ -252,6 +255,14 @@ namespace _1712867_1712872_1712884
                 currentAudioOrVideoName1.Text = _currentAudioOrVideoname;
                 currentAudioOrVideoName2.Text = _currentAudioOrVideoname;
 
+                //
+                if (this._isShuffled == false)
+                {
+                    _shuffleArr.Add(this.currentPlayerIndex);
+                    randomPlayList();
+                    this._isShuffled = true;
+                }
+
 
                 if (!_playList[this.currentPlayerIndex].Name.ToString().Contains("mp3"))
                 {
@@ -277,25 +288,55 @@ namespace _1712867_1712872_1712884
 
             if (openFileDialog.ShowDialog() == true)
             {
-                //var player = new FileInfo(openFileDialog.FileName);
-
-                //this._playList.Add(player);
-
+                this.resetPlayList();
                 foreach (var fileName in openFileDialog.FileNames)
                 {
                     var player = new FileInfo(fileName);
                     this._playList.Add(player);
                 }
+
+                //
+                this.currentPlayerIndex = 0;
+                runMediaPlayer();
+                if (this._isShuffling == true)
+                {
+                    this._isShuffled = false;
+                }
             }
         }
 
+        private void resetPlayList()
+        {
+            if(this._isPlaying == true)
+            {
+                this.playButton.RaiseEvent(new RoutedEventArgs(System.Windows.Controls.Button.ClickEvent));
+            }
+            this.currentPlayerIndex = -1;
+            this._isDeleting = false;
+            this._playList.Clear();
+            this._shuffleArr.Clear();
+            this._deletedPlayListArr.Clear();
+
+
+            //Thiết lập lại đồng hồ
+            progressPlayer.Value = 0;
+            progressPlayer.Maximum = 0.01;
+            playerTime.Text = TimeSpan.FromSeconds(progressPlayer.Value).ToString(@"mm\:ss");
+            playerTime.Text += " / ";
+            playerTime.Text += TimeSpan.FromSeconds(progressPlayer.Maximum).ToString(@"mm\:ss");
+        }
 
         private void playListListView_MouseDoubleClick(object sender, MouseButtonEventArgs e)
         {
-            this._isPlaying = true;
             var mediaPlayer = sender as System.Windows.Controls.ListView;
             this.currentPlayerIndex = mediaPlayer.SelectedIndex;
+            runMediaPlayer();
 
+        }
+
+        private void runMediaPlayer()
+        {
+            this._isPlaying = true;
             this.mediaPlayer.Source = new Uri(_playList[currentPlayerIndex].ToString(), UriKind.Absolute);
 
             playImage.Source = new BitmapImage(new Uri("/Images/pause.png", UriKind.Relative));
@@ -348,7 +389,7 @@ namespace _1712867_1712872_1712884
         private void progressPlayer_ValueChanged(object sender, RoutedPropertyChangedEventArgs<double> e)
         {
             playerTime.Text = TimeSpan.FromSeconds(progressPlayer.Value).ToString(@"mm\:ss");
-            playerTime.Text += " /";
+            playerTime.Text += " / ";
             playerTime.Text += TimeSpan.FromSeconds(progressPlayer.Maximum).ToString(@"mm\:ss");
         }
 
@@ -359,7 +400,7 @@ namespace _1712867_1712872_1712884
                 return;
             }
 
-            if (!this._isShuffle)
+            if (!this._isShuffling)
             {
                 this.currentPlayerIndex++;
 
@@ -404,7 +445,7 @@ namespace _1712867_1712872_1712884
             }
             else
             {
-                if (!this._isShuffle)
+                if (!this._isShuffling)
                 {
                     this.currentPlayerIndex--;
 
@@ -440,24 +481,20 @@ namespace _1712867_1712872_1712884
 
         private void shuffleButton_Click(object sender, RoutedEventArgs e)
         {
-            if (!this._isPlaying)
-            {
-                System.Windows.MessageBox.Show("Media not played yet", "Note");
-                return;
-            }
+            this._isShuffling = !this._isShuffling;
 
-            this._isShuffle = !this._isShuffle;
-
-            if (this._isShuffle)
+            if (this._isShuffling)
             {
                 shuffleButton.Background = Brushes.Red;
-                _shuffleArr.Add(this.currentPlayerIndex);
-                randomPlayList();
+                //_shuffleArr.Add(this.currentPlayerIndex);
+                //randomPlayList();
+                this._isShuffled = false;
             }
             else
             {
                 shuffleButton.Background = Brushes.White;
                 _shuffleArr.Clear();
+                this._isShuffled = true;    //
             }
         }
 
@@ -621,10 +658,280 @@ namespace _1712867_1712872_1712884
             }
         }
 
+        private void Window_Loaded(object sender, RoutedEventArgs e)
+        {
+            loadPlayListHistory();
+        }
+
         private void Window_Closing(object sender, CancelEventArgs e)
         {
             this._hook.KeyUp -= KeyUp_Hook;
             this._hook.Dispose();
+
+            savePlayListHistory();
         }
+
+        private void loadPlayListHistory()
+        {
+            var reader = new StreamReader(PlayListHistoryFileName);
+            string str = "";
+
+            //Load _playList
+            str = reader.ReadLine();
+            if(str == "PlayList:")
+            {
+                str = reader.ReadLine();
+                while (str != "ShuffleArr:")
+                {
+                    this._playList.Add(new FileInfo(str));
+                    str = reader.ReadLine();
+                }
+            }
+
+            //Load _shuffleArr
+            if (str == "ShuffleArr:")
+            {
+                str = reader.ReadLine();
+                while (str != "DeletedPlayListArr:")
+                {
+                    this._shuffleArr.Add(int.Parse(str));
+                    str = reader.ReadLine();
+                }
+            }
+
+
+            //Load _deletedPlayListArr
+            if (str == "DeletedPlayListArr:")
+            {
+                str = reader.ReadLine();
+                while (str != "CurrentPlayerIndex:")
+                {
+                    this._deletedPlayListArr.Add(int.Parse(str));
+                    str = reader.ReadLine();
+                }
+            }
+
+            //Load currentPlayerIndex
+            if (str == "CurrentPlayerIndex:")
+            {
+                str = reader.ReadLine();
+                while (str != "IsPlaying:")
+                {
+                    this.currentPlayerIndex = int.Parse(str);
+                    str = reader.ReadLine();
+                }
+            }
+
+            //Load _isPlaying
+            if (str == "IsPlaying:")
+            {
+                str = reader.ReadLine();
+                while (str != "IsDragging:")
+                {
+                    this._isPlaying = bool.Parse(str);
+                    str = reader.ReadLine();
+                }
+            }
+
+            //Load _isDragging
+            if (str == "IsDragging:")
+            {
+                str = reader.ReadLine();
+                while (str != "IsShuffling:")
+                {
+                    this._isDragging = bool.Parse(str);
+                    str = reader.ReadLine();
+                }
+            }
+
+            //Load _isShuffling
+            if (str == "IsShuffling:")
+            {
+                str = reader.ReadLine();
+                while (str != "IsShuffled:")
+                {
+                    this._isShuffling = bool.Parse(str);
+                    str = reader.ReadLine();
+                }
+            }
+
+            //Load _isShuffled
+            if (str == "IsShuffled:")
+            {
+                str = reader.ReadLine();
+                while (str != "IsLoop:")
+                {
+                    this._isShuffled = bool.Parse(str);
+                    str = reader.ReadLine();
+                }
+            }
+
+            //Load _isLoop
+            if (str == "IsLoop:")
+            {
+                str = reader.ReadLine();
+                while (str != "IsLoop1:")
+                {
+                    this._isLoop = bool.Parse(str);
+                    str = reader.ReadLine();
+                }
+            }
+
+            //Load _isLoop1
+            if (str == "IsLoop1:")
+            {
+                str = reader.ReadLine();
+                while (str != "IsDeleting:")
+                {
+                    this._isLoop1 = bool.Parse(str);
+                    str = reader.ReadLine();
+                }
+            }
+
+            //Load _isDeleting
+            if (str == "IsDeleting:")
+            {
+                str = reader.ReadLine();
+                while (str != "State:")
+                {
+                    this._isDeleting = bool.Parse(str);
+                    str = reader.ReadLine();
+                }
+            }
+
+            //Lưu State
+            if (str == "State:")
+            {
+                str = reader.ReadLine();
+                progressPlayer.Value = double.Parse(str);
+                str = reader.ReadLine();
+                progressPlayer.Minimum = double.Parse(str);
+                str = reader.ReadLine();
+                progressPlayer.Maximum = double.Parse(str);
+            }
+
+            if (this._isShuffling == true)
+            {
+                shuffleButton.Background = Brushes.Red;
+            }
+
+            if (this._isLoop == true)
+            {
+                loopButton.Background = Brushes.Red;
+            }
+
+            if (this._isLoop1 == true)
+            {
+                loopButton.Background = Brushes.Red;
+                loopImage.Source = new BitmapImage(new Uri("/Images/loop-1.png", UriKind.Relative));
+            }
+
+            //if (this._deletedPlayListArr.Count > 0)
+            //{
+            //    deleteButton.Visibility = Visibility.Visible;
+
+            //    System.Windows.Controls.ListView playList = playListListView as System.Windows.Controls.ListView;
+
+            //    for(int i = 0; i < this._deletedPlayListArr.Count; i++)
+            //    {
+            //        playList.SelectedIndex = 6;
+            //    }
+            //}
+
+            this.mediaPlayer.Source = new Uri(_playList[this.currentPlayerIndex].ToString(), UriKind.Absolute);
+            this.mediaPlayer.Position = TimeSpan.FromSeconds(progressPlayer.Value);
+
+
+            if (this._isPlaying == true)
+            {
+                this.mediaPlayer.Pause();
+                this.mediaPlayer.Play();
+                playImage.Source = new BitmapImage(new Uri("/Images/pause.png", UriKind.Relative));
+                this.ResumeButton.RaiseEvent(new RoutedEventArgs(System.Windows.Controls.Button.ClickEvent));
+
+                //System.Threading.Thread.Sleep(1000);
+                _timer.Start();
+
+            }
+            else
+            {
+                this.mediaPlayer.Pause();
+                playImage.Source = new BitmapImage(new Uri("/Images/play.png", UriKind.Relative));
+                this.PauseButton.RaiseEvent(new RoutedEventArgs(System.Windows.Controls.Button.ClickEvent));
+
+                //System.Threading.Thread.Sleep(1000);
+                _timer.Start();
+            }
+
+            reader.Close();
+        }
+
+        private void savePlayListHistory()
+        {
+            var writter = new StreamWriter(PlayListHistoryFileName);
+
+            //Lưu _playList
+            writter.WriteLine("PlayList:");
+            for (int i = 0; i < this._playList.Count; i++)
+            {
+                writter.WriteLine(this._playList[i]);
+            }
+
+            //Lưu _shuffleArr
+            writter.WriteLine("ShuffleArr:");
+            for (int i = 0; i < this._shuffleArr.Count; i++)
+            {
+                writter.WriteLine(this._shuffleArr[i]);
+            }
+
+            //Lưu _deletedPlayListArr
+            writter.WriteLine("DeletedPlayListArr:");
+            for (int i = 0; i < this._deletedPlayListArr.Count; i++)
+            {
+                writter.WriteLine(this._deletedPlayListArr[i]);
+            }
+
+            //Lưu currentPlayerIndex
+            writter.WriteLine("CurrentPlayerIndex:");
+            writter.WriteLine(this.currentPlayerIndex);
+
+            //Lưu _isPlaying
+            writter.WriteLine("IsPlaying:");
+            writter.WriteLine(this._isPlaying);
+
+            //Lưu _isDragging
+            writter.WriteLine("IsDragging:");
+            writter.WriteLine(this._isDragging);
+
+            //Lưu _isShuffling
+            writter.WriteLine("IsShuffling:");
+            writter.WriteLine(this._isShuffling);
+
+            //Lưu _isShuffled
+            writter.WriteLine("IsShuffled:");
+            writter.WriteLine(this._isShuffled);
+
+            //Lưu _isLoop
+            writter.WriteLine("IsLoop:");
+            writter.WriteLine(this._isLoop);
+
+            //Lưu _isLoop1
+            writter.WriteLine("IsLoop1:");
+            writter.WriteLine(this._isLoop1);
+
+            //Lưu _isDeleting
+            writter.WriteLine("IsDeleting:");
+            writter.WriteLine(this._isDeleting);
+
+            //Lưu State
+            writter.WriteLine("State:");
+            writter.WriteLine(progressPlayer.Value);
+            writter.WriteLine(progressPlayer.Minimum);
+            writter.WriteLine(progressPlayer.Maximum);
+
+            writter.Close();
+        }
+
+
     }
 }
