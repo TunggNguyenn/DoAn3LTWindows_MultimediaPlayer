@@ -44,8 +44,9 @@ namespace _1712867_1712872_1712884
         private List<int> _deletedPlayListArr = new List<int>();
         private bool _isDeleting = false;
         //private bool _isMediaEnded = false;
-
+        private bool _isTicking = false;
         private IKeyboardMouseEvents _hook;
+        private bool _isExcuted = false;
 
 
         public MainWindow()
@@ -63,11 +64,11 @@ namespace _1712867_1712872_1712884
             //Đăng ký sự kiện Hook
             this._hook = Hook.GlobalEvents();
             this._hook.KeyUp += KeyUp_Hook;
+
         }
 
         private void KeyUp_Hook(object sender, System.Windows.Forms.KeyEventArgs e)
         {
-
             //Play
             if (e.Control && e.Shift && (e.KeyCode == Keys.P))
             {
@@ -108,6 +109,7 @@ namespace _1712867_1712872_1712884
                 return;
             }
 
+            //Nếu chương trình có Shuffle
             if (this._isShuffling == false)
             {
                 this.currentPlayerIndex++;
@@ -138,7 +140,7 @@ namespace _1712867_1712872_1712884
                     mediaPlayer.Source = new Uri(_playList[this.currentPlayerIndex].ToString(), UriKind.Absolute);
                 }
             }
-            else
+            else  //Nếu không có Shuffle
             {
                 if (this._isLoop == false)
                 {
@@ -178,6 +180,7 @@ namespace _1712867_1712872_1712884
 
         private void endedMediaWithoutLoop()
         {
+            //Dừng chương trình khi chạy hết _playList mà không có Loop
             this._isDragging = true;    //
             progressPlayer.Value = 0;   //
             mediaPlayer.Position = TimeSpan.FromSeconds(progressPlayer.Value);  //
@@ -185,6 +188,13 @@ namespace _1712867_1712872_1712884
             this.playButton.RaiseEvent(new RoutedEventArgs(System.Windows.Controls.Button.ClickEvent)); //
         }
 
+        /// <summary>
+        /// GenerateRandom
+        /// </summary>
+        /// <param name="count"></param>
+        /// <param name="min"></param>
+        /// <param name="max"></param>
+        /// <returns></returns>
         public static List<int> GenerateRandom(int count, int min, int max)
         {
 
@@ -245,6 +255,7 @@ namespace _1712867_1712872_1712884
         {
             if ((this.mediaPlayer.Source != null) && (this.mediaPlayer.NaturalDuration.HasTimeSpan) && (!_isDragging) && (this.currentPlayerIndex != -1) && (!this._isDeleting) && (this._isPlaying))
             {
+                this._isExcuted = true; //
                 playerTime.Text = String.Format($"{mediaPlayer.Position.ToString(@"mm\:ss")} / {mediaPlayer.NaturalDuration.TimeSpan.ToString(@"mm\:ss")}");
 
                 progressPlayer.Minimum = 0;
@@ -255,7 +266,7 @@ namespace _1712867_1712872_1712884
                 currentAudioOrVideoName1.Text = _currentAudioOrVideoname;
                 currentAudioOrVideoName2.Text = _currentAudioOrVideoname;
 
-                //
+                //Thực hiện shuffle nếu suffleButton được chọn mà chưa thực thi
                 if (this._isShuffled == false)
                 {
                     _shuffleArr.Add(this.currentPlayerIndex);
@@ -264,6 +275,7 @@ namespace _1712867_1712872_1712884
                 }
 
 
+                //Hiển thị ảnh minh họa audio/video cho File mp3 hay mp4
                 if (!_playList[this.currentPlayerIndex].Name.ToString().Contains("mp3"))
                 {
                     mediaPlayer.Visibility = Visibility.Visible;
@@ -278,6 +290,35 @@ namespace _1712867_1712872_1712884
                     displayingScreenMode.Visibility = Visibility.Collapsed;
                     currentAudioOrVideoNameStackPanel.Margin = new Thickness(0, 15, 0, 0);
                 }
+
+                //Thực hiện việc tick vào CheckBox của những elements trong DataTemplate đã được tick trong lần gần nhất trước khi tắt chương trình
+                if (this._isTicking == true)
+                {
+                    if (this._deletedPlayListArr.Count > 0)
+                    {
+                        for (int i = 0; i < this._deletedPlayListArr.Count; i++)
+                        {
+                            System.Windows.Controls.ListViewItem myListViewItem = (System.Windows.Controls.ListViewItem)(playListListView.ItemContainerGenerator.ContainerFromIndex(this._deletedPlayListArr[i]));
+
+                            ContentPresenter myContentPresenter = FindVisualChild<ContentPresenter>(myListViewItem);
+
+                            DataTemplate myDataTemplate = myContentPresenter.ContentTemplate;
+
+                            //System.Windows.Controls.CheckBox target = (System.Windows.Controls.CheckBox)myDataTemplate.FindName("", myContentPresenter);
+
+                            //target.IsChecked = true;
+
+                            System.Windows.Controls.StackPanel myStackPanel = (System.Windows.Controls.StackPanel)myDataTemplate.FindName("playListStackPanel", myContentPresenter);
+
+                            System.Windows.Controls.CheckBox target = (System.Windows.Controls.CheckBox)myStackPanel.Children[0];
+
+                            target.IsChecked = true;
+
+                            this._deletedPlayListArr.RemoveAt(this._deletedPlayListArr.Count - 1);
+                        }
+                    }
+                    this._isTicking = false;
+                }
             }
         }
 
@@ -288,7 +329,7 @@ namespace _1712867_1712872_1712884
 
             if (openFileDialog.ShowDialog() == true)
             {
-                this.resetPlayList();
+                this.resetPlayList();   //Reset lại PlayList trước khi chọn những audio/video mới
                 foreach (var fileName in openFileDialog.FileNames)
                 {
                     var player = new FileInfo(fileName);
@@ -297,7 +338,7 @@ namespace _1712867_1712872_1712884
 
                 //
                 this.currentPlayerIndex = 0;
-                runMediaPlayer();
+                runMediaPlayer();   //Run media player tại vị trí currentPlayerIndex
                 if (this._isShuffling == true)
                 {
                     this._isShuffled = false;
@@ -329,11 +370,16 @@ namespace _1712867_1712872_1712884
         private void playListListView_MouseDoubleClick(object sender, MouseButtonEventArgs e)
         {
             var mediaPlayer = sender as System.Windows.Controls.ListView;
+            if(mediaPlayer.SelectedIndex == -1)
+            {
+                return;
+            }
             this.currentPlayerIndex = mediaPlayer.SelectedIndex;
             runMediaPlayer();
 
         }
 
+        /*Run media player tại vị trí currentPlayerIndex*/
         private void runMediaPlayer()
         {
             this._isPlaying = true;
@@ -377,11 +423,13 @@ namespace _1712867_1712872_1712884
 
         private void progressPlayer_DragStarted(object sender, System.Windows.Controls.Primitives.DragStartedEventArgs e)
         {
+            //_isDragging = true để tiếp tục chạy sự kiện _timer_Tick mà không bị xung đột
             this._isDragging = true;
         }
 
         private void progressPlayer_DragCompleted(object sender, System.Windows.Controls.Primitives.DragCompletedEventArgs e)
         {
+            //_isDragging = false để không bị xung đột khi chạy chương trình (xung đột trong sự kiện _timer_Tick
             this._isDragging = false;
             mediaPlayer.Position = TimeSpan.FromSeconds(progressPlayer.Value);
         }
@@ -400,22 +448,25 @@ namespace _1712867_1712872_1712884
                 return;
             }
 
+            //Nếu không có _isShuffling
             if (!this._isShuffling)
             {
                 this.currentPlayerIndex++;
 
+                //Nếu currentPlayerIndex >= this._playList.Count thì chạy chương trình tại vị trí currentPlayerIndex = 0 trong _playList
                 if (this.currentPlayerIndex >= this._playList.Count)
                 {
                     this.currentPlayerIndex = 0;
                     mediaPlayer.Source = new Uri(_playList[this.currentPlayerIndex].ToString(), UriKind.Absolute);
                 }
-                else
+                else 
                 {
                     mediaPlayer.Source = new Uri(_playList[this.currentPlayerIndex].ToString(), UriKind.Absolute);
                 }
             }
-            else
+            else  //Nếu có _isShuffling
             {
+                //Chạy tại vị trí sau vị trị hiện tại trong mảng _shuffleArr
                 for (int i = 0; i < _shuffleArr.Count - 1; i++)
                 {
                     if (this._shuffleArr[i] == this.currentPlayerIndex)
@@ -426,6 +477,7 @@ namespace _1712867_1712872_1712884
                     }
                 }
 
+                //Chạy tại vị trí đầu của mảng _shuffleArr
                 this.currentPlayerIndex = this._shuffleArr[0];
                 mediaPlayer.Source = new Uri(this._playList[this.currentPlayerIndex].ToString(), UriKind.Absolute);
             }
@@ -445,10 +497,12 @@ namespace _1712867_1712872_1712884
             }
             else
             {
+                //Nếu không có _isShuffling
                 if (!this._isShuffling)
                 {
                     this.currentPlayerIndex--;
 
+                    //Nếu this.currentPlayerIndex < 0 thì chạy tại vị trí cuối của _playList
                     if (this.currentPlayerIndex < 0)
                     {
                         this.currentPlayerIndex = _playList.Count - 1;
@@ -459,8 +513,9 @@ namespace _1712867_1712872_1712884
                         mediaPlayer.Source = new Uri(_playList[this.currentPlayerIndex].ToString(), UriKind.Absolute);
                     }
                 }
-                else
+                else  //Nếu có _isShuffling
                 {
+                    //Chạy tại vị trí trước vị trị hiện tại trong mảng _shuffleArr
                     for (int i = 1; i < _shuffleArr.Count; i++)
                     {
                         if (this._shuffleArr[i] == this.currentPlayerIndex)
@@ -471,11 +526,11 @@ namespace _1712867_1712872_1712884
                         }
                     }
 
+                    //Chạy tại vị trí cuối của mảng _shuffleArr
                     this.currentPlayerIndex = this._shuffleArr[this._shuffleArr.Count - 1];
                     mediaPlayer.Source = new Uri(this._playList[this.currentPlayerIndex].ToString(), UriKind.Absolute);
 
                 }
-
             }
         }
 
@@ -548,7 +603,6 @@ namespace _1712867_1712872_1712884
         private void CheckBox_Checked(object sender, RoutedEventArgs e)
         {
             var checkedPlayer = sender as System.Windows.Controls.CheckBox;
-
             
             for(int i = 0; i < this._playList.Count; i++)
             {
@@ -559,6 +613,7 @@ namespace _1712867_1712872_1712884
                 }
             }
 
+            //Nếu có phần trong mảng _deletedPlayListArr thì hiện deleteButton
             if (this._deletedPlayListArr.Count > 0)
             {
                 deleteButton.Visibility = Visibility.Visible;
@@ -579,6 +634,7 @@ namespace _1712867_1712872_1712884
                 }
             }
 
+            //Nếu không có phần trong mảng _deletedPlayListArr thì ẩn deleteButton
             if (this._deletedPlayListArr.Count == 0)
             {
                 deleteButton.Visibility = Visibility.Collapsed;
@@ -587,16 +643,20 @@ namespace _1712867_1712872_1712884
 
         private void deleteButton_Click(object sender, RoutedEventArgs e)
         {
-            this._isDeleting = true;
-            bool flag = false;
+            this._isDeleting = true;    //Bật _isDeleting = true để không bị xung đột khi chương trình đang chạy (xung đột trong sự kiện _timer_Tick
+            bool isDeletedPosition = false;
             int count = 0;
+
+            //Sắp xếp lại mảng để xóa _deletedPlayListArr, _shuffleArr và _playList cho dễ
             sortDeletedPlayListArray(this._deletedPlayListArr);
 
+            //Xóa _playList
             for (int i = this._deletedPlayListArr.Count - 1; i >= 0; i--)
             {
                 if(this.currentPlayerIndex == this._deletedPlayListArr[i])
                 {
-                    flag = true;
+                    isDeletedPosition = true;
+
                     continue;
                 }
 
@@ -607,33 +667,46 @@ namespace _1712867_1712872_1712884
                     this.currentPlayerIndex--;
                     count++;
                 }
-
             }
 
-
+            //Xóa _shuffleArr
             for (int i = this._deletedPlayListArr.Count - 1; i >= 0; i--)
             {
                 if (this.currentPlayerIndex + count == this._deletedPlayListArr[i])
                 {
-                    flag = true;
+                    isDeletedPosition = true;
                     continue;
                 }
 
-                for(int j = 0; j < this._shuffleArr.Count; j++)
+                for (int j = 0; j < this._shuffleArr.Count; j++)
                 {
                     if (this._deletedPlayListArr[i] == this._shuffleArr[j])
                     {
+                        var temp = this._shuffleArr[j];
                         this._shuffleArr.RemoveAt(j);
+
+                        for (int k = 0; k < this._shuffleArr.Count; k++)
+                        {
+                            if (this._shuffleArr[k] > temp)
+                            {
+                                this._shuffleArr[k] = this._shuffleArr[k] - 1;
+                            }
+                        }
+                        break;
                     }
                 }
             }
 
+            //Xóa _deletedPlayListArr
             this._deletedPlayListArr.Clear();
-            if (flag == true)
+
+            //Thêm vị trí currentPlayerIndex vào _deletedPlayListArr để không thể xóa khi chương trình đang chạy
+            if (isDeletedPosition == true)
             {
                 this._deletedPlayListArr.Add(this.currentPlayerIndex);
             }
 
+            //Ẩn deleteButton khi không có phần tử nào trong mảng _deletedPlayListArr cần xóa
             if (this._deletedPlayListArr.Count == 0)
             {
                 deleteButton.Visibility = Visibility.Collapsed;
@@ -642,6 +715,7 @@ namespace _1712867_1712872_1712884
             this._isDeleting = false;
         }
 
+        /*Sắp xếp lại mảng deletedPlayListArr*/
         private void sortDeletedPlayListArray(List<int> deletedPlayListArr)
         {
             for (int i = 0; i < deletedPlayListArr.Count - 1; i++)
@@ -668,9 +742,14 @@ namespace _1712867_1712872_1712884
             this._hook.KeyUp -= KeyUp_Hook;
             this._hook.Dispose();
 
-            savePlayListHistory();
+            //Nếu chương trình đã thực thi
+            if (this._isExcuted == true)
+            {
+                savePlayListHistory();
+            }
         }
 
+        /*Load data khi chương trình vừa chạy lên*/
         private void loadPlayListHistory()
         {
             var reader = new StreamReader(PlayListHistoryFileName);
@@ -687,6 +766,11 @@ namespace _1712867_1712872_1712884
                     str = reader.ReadLine();
                 }
             }
+            else
+            {
+                //Chưa Save
+                return;
+            }
 
             //Load _shuffleArr
             if (str == "ShuffleArr:")
@@ -698,7 +782,6 @@ namespace _1712867_1712872_1712884
                     str = reader.ReadLine();
                 }
             }
-
 
             //Load _deletedPlayListArr
             if (str == "DeletedPlayListArr:")
@@ -799,7 +882,7 @@ namespace _1712867_1712872_1712884
                 }
             }
 
-            //Lưu State
+            //Load State
             if (str == "State:")
             {
                 str = reader.ReadLine();
@@ -810,38 +893,35 @@ namespace _1712867_1712872_1712884
                 progressPlayer.Maximum = double.Parse(str);
             }
 
+            //Bật shuffleButton (nếu có)
             if (this._isShuffling == true)
             {
                 shuffleButton.Background = Brushes.Red;
             }
 
+            //Bật loopButton lần 1 (nếu có)
             if (this._isLoop == true)
             {
                 loopButton.Background = Brushes.Red;
             }
 
+            //Bật loopButton lần 2 (nếu có)
             if (this._isLoop1 == true)
             {
                 loopButton.Background = Brushes.Red;
                 loopImage.Source = new BitmapImage(new Uri("/Images/loop-1.png", UriKind.Relative));
             }
 
-            //if (this._deletedPlayListArr.Count > 0)
-            //{
-            //    deleteButton.Visibility = Visibility.Visible;
-
-            //    System.Windows.Controls.ListView playList = playListListView as System.Windows.Controls.ListView;
-
-            //    for(int i = 0; i < this._deletedPlayListArr.Count; i++)
-            //    {
-            //        playList.SelectedIndex = 6;
-            //    }
-            //}
+            if (this._deletedPlayListArr.Count > 0)
+            {
+                deleteButton.Visibility = Visibility.Visible;
+                this._isTicking = true;
+            }
 
             this.mediaPlayer.Source = new Uri(_playList[this.currentPlayerIndex].ToString(), UriKind.Absolute);
             this.mediaPlayer.Position = TimeSpan.FromSeconds(progressPlayer.Value);
 
-
+            //Chạy lại chương trình lần gần nhất ta chạy trước khi tắt
             if (this._isPlaying == true)
             {
                 this.mediaPlayer.Pause();
@@ -855,7 +935,7 @@ namespace _1712867_1712872_1712884
             }
             else
             {
-                this.mediaPlayer.Pause();
+                //this.mediaPlayer.Pause();
                 playImage.Source = new BitmapImage(new Uri("/Images/play.png", UriKind.Relative));
                 this.PauseButton.RaiseEvent(new RoutedEventArgs(System.Windows.Controls.Button.ClickEvent));
 
@@ -866,64 +946,65 @@ namespace _1712867_1712872_1712884
             reader.Close();
         }
 
+        /*Save data trước khi chương trình tắt*/
         private void savePlayListHistory()
         {
             var writter = new StreamWriter(PlayListHistoryFileName);
 
-            //Lưu _playList
+            //Save _playList
             writter.WriteLine("PlayList:");
             for (int i = 0; i < this._playList.Count; i++)
             {
                 writter.WriteLine(this._playList[i]);
             }
 
-            //Lưu _shuffleArr
+            //Save _shuffleArr
             writter.WriteLine("ShuffleArr:");
             for (int i = 0; i < this._shuffleArr.Count; i++)
             {
                 writter.WriteLine(this._shuffleArr[i]);
             }
 
-            //Lưu _deletedPlayListArr
+            //Save _deletedPlayListArr
             writter.WriteLine("DeletedPlayListArr:");
             for (int i = 0; i < this._deletedPlayListArr.Count; i++)
             {
                 writter.WriteLine(this._deletedPlayListArr[i]);
             }
 
-            //Lưu currentPlayerIndex
+            //Save currentPlayerIndex
             writter.WriteLine("CurrentPlayerIndex:");
             writter.WriteLine(this.currentPlayerIndex);
 
-            //Lưu _isPlaying
+            //Save _isPlaying
             writter.WriteLine("IsPlaying:");
             writter.WriteLine(this._isPlaying);
 
-            //Lưu _isDragging
+            //Save _isDragging
             writter.WriteLine("IsDragging:");
             writter.WriteLine(this._isDragging);
 
-            //Lưu _isShuffling
+            //Save _isShuffling
             writter.WriteLine("IsShuffling:");
             writter.WriteLine(this._isShuffling);
 
-            //Lưu _isShuffled
+            //Save _isShuffled
             writter.WriteLine("IsShuffled:");
             writter.WriteLine(this._isShuffled);
 
-            //Lưu _isLoop
+            //Save _isLoop
             writter.WriteLine("IsLoop:");
             writter.WriteLine(this._isLoop);
 
-            //Lưu _isLoop1
+            //Save _isLoop1
             writter.WriteLine("IsLoop1:");
             writter.WriteLine(this._isLoop1);
 
-            //Lưu _isDeleting
+            //Save _isDeleting
             writter.WriteLine("IsDeleting:");
             writter.WriteLine(this._isDeleting);
 
-            //Lưu State
+            //Save State
             writter.WriteLine("State:");
             writter.WriteLine(progressPlayer.Value);
             writter.WriteLine(progressPlayer.Minimum);
@@ -932,6 +1013,32 @@ namespace _1712867_1712872_1712884
             writter.Close();
         }
 
-
+        /// <summary>
+        ///         /*How to: Find DataTemplate-Generated Elements*/
+        /// </summary>
+        /// <typeparam name="childItem"></typeparam>
+        /// <param name="obj"></param>
+        /// <returns></returns>
+        private childItem FindVisualChild<childItem>(DependencyObject obj)
+            where childItem : DependencyObject
+        {
+            for(int i = 0; i < VisualTreeHelper.GetChildrenCount(obj); i++)
+            {
+                DependencyObject child = VisualTreeHelper.GetChild(obj, i);
+                if (child != null && child is childItem)
+                {
+                    return (childItem)child;
+                }
+                else
+                {
+                    childItem childOfChild = FindVisualChild<childItem>(child);
+                    if (childOfChild != null)
+                    {
+                        return childOfChild;
+                    }
+                }
+            }
+            return null;
+        }
     }
 }
