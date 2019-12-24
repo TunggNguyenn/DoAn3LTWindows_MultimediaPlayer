@@ -64,8 +64,11 @@
                         <Button x:Name="uploadButton" Margin="10,0,0,0" Height="30" Width="30" Click="uploadButton_Click">
                             <Image Source="/Images/upload.png" RenderOptions.BitmapScalingMode="HighQuality"/>
                         </Button>
-                        <Button x:Name="folderButton" Margin="0,0,0,0" Height="30" Width="30">
+                        <Button x:Name="folderButton" Margin="0,0,0,0" Height="30" Width="30" Click="FolderButton_Click">
                             <Image Source="/Images/folder.png" RenderOptions.BitmapScalingMode="HighQuality"/>
+                        </Button>
+                        <Button x:Name="saveButton" Margin="0,0,0,0" Height="30" Width="30" Click="SaveButton_Click">
+                            <Image Source="/Images/save.png" RenderOptions.BitmapScalingMode="HighQuality"/>
                         </Button>
                         <Button x:Name="deleteButton" Click="deleteButton_Click" Margin="0,0,0,0" Height="30" Width="30" Visibility="Hidden">
                             <Image Source="/Images/delete-button.png" RenderOptions.BitmapScalingMode="HighQuality"/>
@@ -171,12 +174,6 @@
                 <Ellipse Fill="LightBlue" Height="40" Width="100"/>
                 <TextBlock x:Name="playerTime" Text="0:0 / 0:0" VerticalAlignment="Center" HorizontalAlignment="Center"/>
             </Grid>
-            <Button x:Name="volumeadjustmentButton" Height="30" Width="30">
-                <Image Source="/Images/volume-adjustment.png" RenderOptions.BitmapScalingMode="HighQuality" />
-            </Button>
-            <Button x:Name="unlikeButton" Height="30" Width="30">
-                <Image Source="/Images/unlike.png" RenderOptions.BitmapScalingMode="HighQuality" />
-            </Button>
         </StackPanel>
     </Grid>
 </Window>

@@ -19,6 +19,7 @@ using System.Windows.Navigation;
 using System.Windows.Shapes;
 using System.Windows.Threading;
 using System.Windows.Forms;
+using System.Diagnostics;
 
 namespace _1712867_1712872_1712884
 {
@@ -1039,6 +1040,38 @@ namespace _1712867_1712872_1712884
                 }
             }
             return null;
+        }
+
+        private void FolderButton_Click(object sender, RoutedEventArgs e)
+        {
+            var openFileDialog = new Microsoft.Win32.OpenFileDialog();
+            if (openFileDialog.ShowDialog()==true)
+            {
+                var songs = File.ReadAllLines(openFileDialog.FileName);
+                resetPlayList();
+                foreach(var song in songs)
+                {
+                    _playList.Add(new FileInfo(song));
+                }
+                playListListView.ItemsSource = _playList;
+            }
+
+        }
+
+        private void SaveButton_Click(object sender, RoutedEventArgs e)
+        {
+            Window1 window = new Window1();
+            if (window.ShowDialog() == true)
+            {
+                var playlistName = window.PlaylistName;
+                StreamWriter fileOut = new StreamWriter($"{playlistName}.txt");
+                foreach (var song in _playList)
+                {
+                    Debug.WriteLine(song);
+                    fileOut.WriteLine(song);
+                }
+                fileOut.Close();
+            }
         }
     }
 }
