@@ -64,8 +64,11 @@
                         <Button x:Name="uploadButton" Margin="10,0,0,0" Height="30" Width="30" Click="uploadButton_Click">
                             <Image Source="/Images/upload.png" RenderOptions.BitmapScalingMode="HighQuality"/>
                         </Button>
-                        <Button x:Name="folderButton" Margin="0,0,0,0" Height="30" Width="30">
+                        <Button x:Name="folderButton" Click="folderButton_Click" Margin="0,0,0,0" Height="30" Width="30">
                             <Image Source="/Images/folder.png" RenderOptions.BitmapScalingMode="HighQuality"/>
+                        </Button>
+                        <Button x:Name="saveButton" Click="saveButton_Click" Margin="0,0,0,0" Height="30" Width="30">
+                            <Image Source="/Images/save.png" RenderOptions.BitmapScalingMode="HighQuality"/>
                         </Button>
                         <Button x:Name="deleteButton" Click="deleteButton_Click" Margin="0,0,0,0" Height="30" Width="30" Visibility="Hidden">
                             <Image Source="/Images/delete-button.png" RenderOptions.BitmapScalingMode="HighQuality"/>
